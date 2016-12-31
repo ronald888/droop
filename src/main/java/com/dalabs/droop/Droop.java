@@ -31,56 +31,18 @@ public class Droop {
                 break;
             case "consumer":
                 break;
+            case "ListTables":
+                ListTables listTables = getListTables(args);
+                listTables.run();
+                break;
             default:
                 throw new IllegalArgumentException("Don't know how to do " + args[0]);
         }
 
-        Connection conn = null;
-        Statement stmt = null;
-        try{
-            Class.forName(JDBC_DRIVER);
-            conn = DriverManager.getConnection(DB_URL,USER,PASS);
-
-            stmt = conn.createStatement();
-            /* Perform a select on data in the classpath storage plugin. */
-            //String sql = "select age, name from `dfs.root`.`/user/mapr/people.parquet`";
-            //String sql = "select EMP_ID, EMP_NAME, EMP_SAL from `test.MAPR`.`ACAD`";
-            String sql = "SELECT TABLE_NAME " +
-                    "FROM INFORMATION_SCHEMA.`TABLES` " +
-                    "WHERE TABLE_SCHEMA = 'oracle.MAPR' and TABLE_TYPE = 'TABLE' " +
-                    "ORDER BY TABLE_NAME ASC";
-            ResultSet rs = stmt.executeQuery(sql);
-
-            while(rs.next()) {
-                String table = rs.getString("TABLE_NAME");
-
-                System.out.println(table);
-            }
-
-            rs.close();
-            stmt.close();
-
-            conn.close();
-        } catch(SQLException se) {
-            //Handle errors for JDBC
-            se.printStackTrace();
-        } catch(Exception e) {
-            //Handle errors for Class.forName
-            e.printStackTrace();
-        } finally {
-            try{
-                if(stmt!=null)
-                    stmt.close();
-            } catch(SQLException se2) {
-            }
-            try {
-                if(conn!=null)
-                    conn.close();
-            } catch(SQLException se) {
-                se.printStackTrace();
-            }
-        }
-
         System.exit(0);
+    }
+
+    private static ListTables getListTables(final String args[]) {
+        return new ListTables(JDBC_DRIVER, DB_URL, USER, PASS);
     }
 }
