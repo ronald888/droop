@@ -55,6 +55,8 @@ public abstract class DroopBit {
                 "List available tables in a schema");
         registerBit("list-schemas", ListSchemasBit.class,
                 "List available schemas in Drill");
+        registerBit("import", ImportBit.class,
+                "Import a table from a database to HDFS");
         /*
         registerTool("codegen", CodeGenTool.class,
                 "Generate code to interact with database records");

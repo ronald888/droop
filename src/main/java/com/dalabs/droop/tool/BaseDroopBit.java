@@ -67,6 +67,7 @@ public abstract class BaseDroopBit extends com.dalabs.droop.tool.DroopBit {
     public static final String PASSWORD_ALIAS_ARG = "password-alias";
     public static final String DIRECT_ARG = "direct";
     public static final String BATCH_ARG = "batch";
+    public static final String SCHEMA_ARG = "schema";
     public static final String TABLE_ARG = "table";
     public static final String STAGING_TABLE_ARG = "staging-table";
     public static final String CLEAR_STAGING_TABLE_ARG = "clear-staging-table";

@@ -3,6 +3,7 @@ package com.dalabs.droop.tool;
 /**
  * Created by ronaldm on 12/31/2016.
  */
+import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -18,6 +19,7 @@ import com.cloudera.sqoop.Droop2Options.InvalidOptionsException;
 import com.cloudera.sqoop.cli.ToolOptions;
 */
 
+import com.dalabs.droop.cli.RelatedOptions;
 import com.dalabs.droop.cli.ToolOptions;
 import com.dalabs.droop.Droop2Options;
 import com.dalabs.droop.Droop2Options.InvalidOptionsException;
@@ -55,7 +57,7 @@ public class ListTablesBit extends BaseDroopBit {
             return 1;
         }
         try {
-            String [] tables = listTables();
+            String [] tables = listTables(options);
             if (null == tables) {
                 System.err.println("Could not retrieve tables list from server");
                 LOG.error("listTables() returned null");
@@ -72,7 +74,20 @@ public class ListTablesBit extends BaseDroopBit {
         return 0;
     }
 
-    protected String[] listTables() {
+    protected String[] listTables(Droop2Options options) {
+        String schemaName = options.getSchemaName();
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("SELECT TABLE_NAME ");
+        sb.append("FROM INFORMATION_SCHEMA.`TABLES` ");
+        sb.append("WHERE TABLE_SCHEMA = '");
+        sb.append(schemaName);
+        sb.append("' and TABLE_TYPE = 'TABLE' ");
+        sb.append("ORDER BY TABLE_NAME ASC");
+
+        String sqlCmd = sb.toString();
+        LOG.debug("Listing tables with command: " + sqlCmd);
+
         List<String> tables = new ArrayList<String>();
         Statement stmt = null;
         ResultSet rs = null;
@@ -81,10 +96,10 @@ public class ListTablesBit extends BaseDroopBit {
         try {
             conn = getConnection();
             stmt = conn.createStatement();
-            rs = stmt.executeQuery(QUERY_LIST_TABLES);
+            rs = stmt.executeQuery(sqlCmd);
 
             while(rs.next()) {
-                tables.add(rs.getString(TABLE_COLUMN_NAME));
+                tables.add(rs.getString(1));
             }
         } catch (SQLException se) {
             LOG.error("Failed to list tables: " + StringUtils.stringifyException(se));
@@ -108,15 +123,65 @@ public class ListTablesBit extends BaseDroopBit {
         return tables.toArray(new String[tables.size()]);
     }
 
+
+    /**
+     * Construct the set of options that control imports, either of one
+     * table or a batch of tables.
+     * @return the RelatedOptions that can be used to parse the import
+     * arguments.
+     */
+    @SuppressWarnings("static-access")
+    protected RelatedOptions getListTablesOptions() {
+        // Imports
+        RelatedOptions listOpts = new RelatedOptions("List tables arguments");
+
+        listOpts.addOption(OptionBuilder.withArgName("schema-name")
+                .hasArg().withDescription("Schema to read")
+                .withLongOpt(SCHEMA_ARG)
+                .create());
+        return listOpts;
+    }
+
     @Override
     public void configureOptions(ToolOptions toolOptions) {
         toolOptions.addUniqueOptions(getCommonOptions());
+        toolOptions.addUniqueOptions(getListTablesOptions());
+    }
+
+    @Override
+    public void printHelp(ToolOptions toolOptions) {
+        super.printHelp(toolOptions);
+        System.out.println("");
+        System.out.println("At minimum, you must specify --connect and --schema");
     }
 
     @Override
     public void applyOptions(CommandLine in, Droop2Options out)
         throws InvalidOptionsException {
-        applyCommonOptions(in, out);
+        try {
+            applyCommonOptions(in, out);
+
+            if (in.hasOption(SCHEMA_ARG)) {
+                out.setSchemaName(in.getOptionValue(SCHEMA_ARG));
+            }
+        } catch (NumberFormatException nfe) {
+            throw new InvalidOptionsException("Error: expected numeric argument.\n"
+                    + "Try --help for usage.");
+        }
+    }
+
+
+    /**
+     * Validate list-tables-specific arguments.
+     * @param options the configured Droop2Options to check
+     */
+    protected void validateListTablesOptions(Droop2Options options)
+            throws InvalidOptionsException {
+        if (options.getSchemaName() == null) {
+            throw new InvalidOptionsException(
+                    "--schema is required for list-tables. "
+                            + HELP_STR);
+        }
     }
 
     @Override
@@ -129,6 +194,7 @@ public class ListTablesBit extends BaseDroopBit {
             throw new InvalidOptionsException(HELP_STR);
         }
 
+        validateListTablesOptions(options);
         validateCommonOptions(options);
     }
 }

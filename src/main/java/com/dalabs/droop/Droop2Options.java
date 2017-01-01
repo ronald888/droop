@@ -61,9 +61,37 @@ public class Droop2Options implements Cloneable {
     @StoredAsProperty("droop.throwOnError") private boolean throwOnError;
 
     @StoredAsProperty("db.connect.string") private String connectString;
+    @StoredAsProperty("db.schema") private String schemaName;
     @StoredAsProperty("db.table") private String tableName;
     private String [] columns; // Array stored as db.column.list.
     @StoredAsProperty("db.username") private String username;
+
+    public String[] getColumns() {
+        if (null == columns) {
+            return null;
+        } else {
+            return Arrays.copyOf(columns, columns.length);
+        }
+    }
+
+    public String getColumnNameCaseInsensitive(String col){
+        if (null != columns) {
+            for(String columnName : columns) {
+                if(columnName.equalsIgnoreCase(col)) {
+                    return columnName;
+                }
+            }
+        }
+        return null;
+    }
+
+    public void setColumns(String [] cols) {
+        if (null == cols) {
+            this.columns = null;
+        } else {
+            this.columns = Arrays.copyOf(cols, cols.length);
+        }
+    }
 
 
     /**
@@ -177,6 +205,22 @@ public class Droop2Options implements Cloneable {
         this.connectString = connectStr;
     }
 
+    public String getSchemaName() {
+        return schemaName;
+    }
+
+    public void setSchemaName(String schema) {
+        this.schemaName = schema;
+    }
+
+    public String getTableName() {
+        return tableName;
+    }
+
+    public void setTableName(String table) {
+        this.tableName = table;
+    }
+
     private Properties connectionParams; //Properties stored as db.connect.params
     public void setConnectionParams(Properties params) {
         connectionParams = new Properties();
@@ -256,6 +300,52 @@ public class Droop2Options implements Cloneable {
 
     public void setDriverClassName(String driverClass) {
         this.driverClassName = driverClass;
+    }
+
+    /**
+     * @return the base destination path for table uploads.
+     */
+    public String getWarehouseDir() {
+        return warehouseDir;
+    }
+
+    public void setWarehouseDir(String warehouse) {
+        this.warehouseDir = warehouse;
+    }
+
+    public String getTargetDir() {
+        return this.targetDir;
+    }
+
+    public void setTargetDir(String dir) {
+        this.targetDir = dir;
+    }
+
+    public void setAppendMode(boolean doAppend) {
+        this.append = doAppend;
+    }
+
+    public boolean isAppendMode() {
+        return this.append;
+    }
+
+    public void setDeleteMode(boolean doDelete) {
+        this.delete = doDelete;
+    }
+
+    public boolean isDeleteMode() {
+        return this.delete;
+    }
+
+    /**
+     * @return the destination file format
+     */
+    public FileLayout getFileLayout() {
+        return this.layout;
+    }
+
+    public void setFileLayout(FileLayout fileLayout) {
+        this.layout = fileLayout;
     }
 
     private DroopBit activeDroopBit;
@@ -347,6 +437,7 @@ public class Droop2Options implements Cloneable {
         //This default value is set intentionally according to SQOOP_RETHROW_PROPERTY system property
         //to support backward compatibility. Do not exchange it.
         this.throwOnError = isDroopRethrowSystemPropertySet();
+        this.layout = FileLayout.ParquetFile;
 
     }
 

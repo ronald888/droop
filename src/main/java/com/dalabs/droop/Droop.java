@@ -75,9 +75,7 @@ public class Droop {
             System.err.println("Try 'droop help' for usage.");
             return 1;
         }
-        for (String arg1 : expandedArgs) {
-            System.out.println(arg1);
-        }
+
         String bitName = expandedArgs[0];
         DroopBit bit = DroopBit.getBit(bitName);
         if (null == bit) {
@@ -90,6 +88,7 @@ public class Droop {
                     Arrays.copyOfRange(expandedArgs, 1, expandedArgs.length));
         }
     }
+
     public static void main(String[] args) {
         int ret = runBit(args);
 
