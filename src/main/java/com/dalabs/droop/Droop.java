@@ -1,12 +1,14 @@
 package com.dalabs.droop;
 
-import com.dalabs.droop.util.OptionsFileUtil;
-import com.google.common.base.Preconditions;
+import java.util.Arrays;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.sql.*;
+
+import com.dalabs.droop.tool.DroopBit;
+import com.dalabs.droop.util.OptionsFileUtil;
 
 /**
  * Created by ronaldm on 12/30/2016.
@@ -14,20 +16,56 @@ import java.sql.*;
 public class Droop {
     static final Logger LOG = LoggerFactory.getLogger(Droop.class);
 
-    static final String JDBC_DRIVER = "org.apache.drill.jdbc.Driver";
-    static final String DB_URL = "jdbc:drill:zk=maprdemo:5181/drill/demo_mapr_com-drillbits";
-
-    static final String USER = "mapr";
-    static final String PASS = "mapr";
+    /**
+     * If this System property is set, always throw an exception, do not just
+     * exit with status 1.
+     */
+    public static final String DROOP_RETHROW_PROPERTY = "droop.throwOnError";
 
     public static final String DROOP_OPTIONS_FILE_SPECIFIER = "--options-file";
 
-    public static void main(String[] args) throws IOException, Exception {
-        final String message = "USAGE:\n"
-                + "\tjava -cp `mapr classpath`:./nyse-taq-streaming-1.0-jar-with-dependencies.jar com.mapr.examples.Run producer [source data file] [stream:topic]\n"
-                + "\tjava -cp `mapr classpath`:./nyse-taq-streaming-1.0-jar-with-dependencies.jar com.mapr.examples.Run consumer [stream:topic]\n";
-        //Preconditions.checkArgument(args.length > 1, message);
+    private DroopBit bit;
+    private Droop2Options options;
 
+    public Droop(DroopBit bit) {
+        this(bit, new Droop2Options());
+    }
+
+    public Droop(DroopBit bit, Droop2Options opts) {
+        LOG.info("Running Droop version: ");
+        /**
+         * TODO: set options conf here
+         */
+        this.options = opts;
+        this.bit = bit;
+    }
+
+    public DroopBit getBit() {
+        return this.bit;
+    }
+
+    public Droop2Options getOptions() {
+        return this.options;
+    }
+
+    public static int runDroop(Droop droop, String [] args) {
+
+        Droop2Options options = droop.getOptions();
+        DroopBit bit = droop.getBit();
+
+        try {
+            options = bit.parseArguments(args, null, options, false);
+            bit.validateOptions(options);
+        } catch (Exception e) {
+            LOG.debug(e.getMessage(), e);
+            System.err.println(e.getMessage());
+            return 1;
+        }
+
+        return bit.run(options);
+    }
+
+    public static int runBit(String [] args) {
         String[] expandedArgs = null;
         try {
             expandedArgs = OptionsFileUtil.expandArguments(args);
@@ -35,27 +73,26 @@ public class Droop {
             LOG.error("Error while expanding arguments", ex);
             System.err.println(ex.getMessage());
             System.err.println("Try 'droop help' for usage.");
-            //return 1;
+            return 1;
         }
-
-        switch (args[0]) {
-            case "producer":
-                break;
-            case "consumer":
-                break;
-            case "ListTables":
-                ListTables listTables = getListTables(args);
-                listTables.run();
-                break;
-            default:
-                throw new IllegalArgumentException("Don't know how to do " + args[0]);
+        for (String arg1 : expandedArgs) {
+            System.out.println(arg1);
         }
-
-        System.exit(0);
+        String bitName = expandedArgs[0];
+        DroopBit bit = DroopBit.getBit(bitName);
+        if (null == bit) {
+            System.err.println("No such droop bit: " + bitName
+                    + ". See 'droop help'.");
+            return 1;
+        } else {
+            Droop droop = new Droop(bit);
+            return runDroop(droop,
+                    Arrays.copyOfRange(expandedArgs, 1, expandedArgs.length));
+        }
     }
+    public static void main(String[] args) {
+        int ret = runBit(args);
 
-    private static ListTables getListTables(final String args[]) {
-
-        return new ListTables(JDBC_DRIVER, DB_URL, USER, PASS);
+        System.exit(ret);
     }
 }
