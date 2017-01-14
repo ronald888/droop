@@ -12,6 +12,7 @@ import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.util.StringUtils;
+import org.apache.hadoop.fs.Path;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -43,12 +44,6 @@ public class ImportBit extends BaseDroopBit {
 
     public static final String SET_STORE_FORMAT =
             "ALTER SESSION SET `store.format`=";
-
-    public static final String QUERY_LIST_TABLES =
-            "SELECT TABLE_NAME "
-          + "FROM INFORMATION_SCHEMA.`TABLES` "
-          + "WHERE TABLE_SCHEMA = 'oracle.MAPR' and TABLE_TYPE = 'TABLE' "
-          + "ORDER BY TABLE_NAME ASC";
 
     // true if this is an all-tables import. Set by a subclass which
     // overrides the run() method of this tool (which can only do
@@ -105,7 +100,7 @@ public class ImportBit extends BaseDroopBit {
                 return 1;
             }
 
-            if (!importTable(options)) {
+            if (!importTable(options, options.getTableName())) {
                 System.err.println("Can not import table");
                 LOG.error("importTable() returned false");
                 return 1;
@@ -117,21 +112,87 @@ public class ImportBit extends BaseDroopBit {
         return 0;
     }
 
-    protected boolean importTable(Droop2Options options) {
-        // TODO: apply getOutputPath
-        String hdfsTargetDir = options.getTargetDir();
-        String schemaName = options.getSchemaName();
-        String tableName = options.getTableName();
+    protected void dropTable(Connection conn, String fullTableName) {
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("DROP TABLE ");
+        sb.append(fullTableName);
+
+        String sqlCmd = sb.toString();
+        LOG.debug("Dropping data with command: " + sqlCmd);
+
+        Statement stmt = null;
+        ResultSet rs = null;
+
+        try {
+            stmt = conn.createStatement();
+            rs = stmt.executeQuery(sqlCmd);
+            rs.next();
+            LOG.info("Table dropped: " + rs.getString(1));
+            System.out.println("Table dropped: " + rs.getString(1));
+        } catch (SQLException se) {
+            LOG.warn("Failed to drop table");
+        } finally {
+            try {
+                if (rs != null) {
+                    rs.close();
+                }
+            } catch (SQLException ex) {
+                LOG.error("Failed to close resultset: " + StringUtils.stringifyException(ex));
+            }
+            try {
+                if (stmt != null) {
+                    stmt.close();
+                }
+            } catch (SQLException ex) {
+                LOG.error("Failed to close statement: " + StringUtils.stringifyException(ex));
+            }
+        }
+    }
+
+    protected boolean importTable(Droop2Options options, String tableName) {
+        String inSchemaName = options.getInputSchemaName();
+        String outSchemaName = options.getOutputSchemaName();
+
+        Path outputPath = getOutputPath(options, tableName);
+
+        String outTable = "`"
+                + outSchemaName
+                + "`.`"
+                + outputPath.toString()
+                + "`";
+
 
         StringBuilder sb = new StringBuilder();
         sb.append("CREATE TABLE ");
-        sb.append(hdfsTargetDir);
+        sb.append(outTable);
         sb.append(" AS ");
-        sb.append("SELECT * FROM `");
-        sb.append(schemaName);
-        sb.append("`.`");
-        sb.append(tableName);
-        sb.append("`");
+
+        if (null != tableName) {
+            // Import a table
+            // TODO: handle column names
+
+            String inTable = "`"
+                    + inSchemaName
+                    + "`.`"
+                    + tableName
+                    + "`";
+
+            sb.append("SELECT * FROM ");
+            sb.append(inTable);
+
+            String where = options.getWhereClause();
+            if (null != where) {
+                sb.append(" WHERE ");
+                sb.append(where);
+            }
+        } else {
+            // Import a free form query
+
+            String inputQuery = options.getSqlQuery();
+            sb.append(inputQuery);
+
+        }
 
         String sqlCmd = sb.toString();
         LOG.debug("Importing data with command: " + sqlCmd);
@@ -142,6 +203,10 @@ public class ImportBit extends BaseDroopBit {
 
         try {
             conn = getConnection();
+
+            if (options.isDeleteMode()) {
+                dropTable(conn, outTable);
+            }
             stmt = conn.createStatement();
             rs = stmt.executeQuery(sqlCmd);
             rs.next();
@@ -230,6 +295,33 @@ public class ImportBit extends BaseDroopBit {
     }
 
     /**
+     * @return the output path for the imported files;
+     * if importing to hbase, this may return null.
+     */
+    private Path getOutputPath(Droop2Options options, String tableName) {
+        /**
+         * droop behavior:
+         * provide option for output-schema, aside from input-schema
+         * provide option for target-dir, input-schema.target-dir
+         * provide option for warehouse-dir, input-schema.target-dir/table
+         * if no option provided for either dirs, input-schema.table
+         */
+        String hdfsWarehouseDir = options.getWarehouseDir();
+        String hdfsTargetDir = options.getTargetDir();
+        Path outputPath = null;
+        // Try in this order: target-dir or warehouse-dir
+        if (hdfsTargetDir != null) {
+            outputPath = new Path(hdfsTargetDir);
+        } else if (hdfsWarehouseDir != null) {
+            outputPath = new Path(hdfsWarehouseDir, tableName);
+        } else if (null != tableName) {
+            outputPath = new Path(tableName);
+        }
+
+        return outputPath;
+    }
+
+    /**
      * Construct the set of options that control imports, either of one
      * table or a batch of tables.
      * @return the RelatedOptions that can be used to parse the import
@@ -248,10 +340,6 @@ public class ImportBit extends BaseDroopBit {
         */
 
         if (!allTables) {
-            importOpts.addOption(OptionBuilder.withArgName("schema-name")
-                    .hasArg().withDescription("Schema to read")
-                    .withLongOpt(SCHEMA_ARG)
-                    .create());
             importOpts.addOption(OptionBuilder.withArgName("table-name")
                     .hasArg().withDescription("Table to read")
                     .withLongOpt(TABLE_ARG)
@@ -295,6 +383,14 @@ public class ImportBit extends BaseDroopBit {
             addValidationOpts(importOpts);
         }
 
+        importOpts.addOption(OptionBuilder.withArgName("input-schema-name")
+                .hasArg().withDescription("Input schema to read")
+                .withLongOpt(INPUT_SCHEMA_ARG)
+                .create());
+        importOpts.addOption(OptionBuilder.withArgName("output-schema-name")
+                .hasArg().withDescription("Output schema to read")
+                .withLongOpt(OUTPUT_SCHEMA_ARG)
+                .create());
         importOpts.addOption(OptionBuilder.withArgName("dir")
                 .hasArg().withDescription("HDFS parent for table destination")
                 .withLongOpt(WAREHOUSE_DIR_ARG)
@@ -367,9 +463,9 @@ public class ImportBit extends BaseDroopBit {
         super.printHelp(toolOptions);
         System.out.println("");
         if (allTables) {
-            System.out.println("At minimum, you must specify --connect and --schema");
+            System.out.println("At minimum, you must specify --connect, --input-schema and --output-schema");
         } else {
-            System.out.println("At minimum, you must specify --connect, --schema and --table");
+            System.out.println("At minimum, you must specify --connect, --input-schema, --output-schema and --table");
         }
     }
 
@@ -408,11 +504,11 @@ public class ImportBit extends BaseDroopBit {
                     out.setDeleteMode(true);
                 }
 
-                /*
                 if (in.hasOption(SQL_QUERY_ARG)) {
                     out.setSqlQuery(in.getOptionValue(SQL_QUERY_ARG));
                 }
 
+                /*
                 if (in.hasOption(SQL_QUERY_BOUNDARY)) {
                     out.setBoundaryQuery(in.getOptionValue(SQL_QUERY_BOUNDARY));
                 }
@@ -425,8 +521,12 @@ public class ImportBit extends BaseDroopBit {
                 // applyValidationOptions(in, out);
             }
 
-            if (in.hasOption(SCHEMA_ARG)) {
-                out.setSchemaName(in.getOptionValue(SCHEMA_ARG));
+            if (in.hasOption(INPUT_SCHEMA_ARG)) {
+                out.setInputSchemaName(in.getOptionValue(INPUT_SCHEMA_ARG));
+            }
+
+            if (in.hasOption(OUTPUT_SCHEMA_ARG)) {
+                out.setOutputSchemaName(in.getOptionValue(OUTPUT_SCHEMA_ARG));
             }
 
             if (in.hasOption(WAREHOUSE_DIR_ARG)) {
@@ -460,39 +560,53 @@ public class ImportBit extends BaseDroopBit {
      */
     protected void validateImportOptions(Droop2Options options)
             throws InvalidOptionsException {
-         if (!allTables  &&
-                 (options.getSchemaName() == null
-                 || options.getTableName() == null)) {
+         if (!allTables
+                 && options.getInputSchemaName() == null
+                 && options.getOutputSchemaName() == null
+                 && options.getTableName() == null) {
              throw new InvalidOptionsException(
-                     "--schema and --table are required for import. "
+                     "--input-schema, --output-schema and --table are required for import. "
                              + "(Or use droop import-all-tables.)"
                              + HELP_STR);
-         } else if (allTables && options.getSchemaName() == null) {
+         } else if (!allTables
+                     && options.getOutputSchemaName() == null
+                     && options.getSqlQuery() == null) {
+                 throw new InvalidOptionsException(
+                         "--output-schema and --query are required for import. "
+                                 + "(Or use droop import-all-tables.)"
+                                 + HELP_STR);
+         } else if (allTables &&
+                     (options.getInputSchemaName() == null
+                   || options.getOutputSchemaName() == null)) {
              throw new InvalidOptionsException(
-                     "--schema is required for import-all-tables."
+                     "--input-schema and --output-schema are required for import-all-tables."
                              + HELP_STR);
-        // if (!allTables && options.getTableName() == null
-        //         && options.getSqlQuery() == null) {
-        //    throw new InvalidOptionsException(
-        //            "--table or --" + SQL_QUERY_ARG + " is required for import. "
-        //                    + "(Or use droop import-all-tables.)"
-        //                    + HELP_STR);
+         } else if (!allTables && options.getTableName() == null
+                 && options.getSqlQuery() == null) {
+            throw new InvalidOptionsException(
+                    "--table or --" + SQL_QUERY_ARG + " is required for import. "
+                            + "(Or use droop import-all-tables.)"
+                            + HELP_STR);
         } else if (options.getTargetDir() != null
                 && options.getWarehouseDir() != null) {
             throw new InvalidOptionsException(
                     "--target-dir with --warehouse-dir are incompatible options."
                             + HELP_STR);
-        /*
         } else if (options.getTableName() != null
                 && options.getSqlQuery() != null) {
             throw new InvalidOptionsException(
                     "Cannot specify --" + SQL_QUERY_ARG + " and --table together."
                             + HELP_STR);
-        */
-        } else if (options.getTargetDir() == null) {
-        /*
+            /*
+        } else if (options.getTargetDir() == null
+                && options.getWarehouseDir() == null) {
+            throw new InvalidOptionsException(
+                    "--target-dir with --warehouse-dir are incompatible options."
+                            + HELP_STR);
+                            */
         } else if (options.getSqlQuery() != null
-                && options.getTargetDir() == null
+                && options.getTargetDir() == null) {
+                /*
                 && options.getHBaseTable() == null
                 && options.getHCatTableName() == null
                 && options.getAccumuloTable() == null) {

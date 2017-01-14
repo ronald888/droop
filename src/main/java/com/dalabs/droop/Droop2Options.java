@@ -62,6 +62,8 @@ public class Droop2Options implements Cloneable {
 
     @StoredAsProperty("db.connect.string") private String connectString;
     @StoredAsProperty("db.schema") private String schemaName;
+    @StoredAsProperty("db.input.schema") private String inputSchemaName;
+    @StoredAsProperty("db.output.schema") private String outputSchemaName;
     @StoredAsProperty("db.table") private String tableName;
     private String [] columns; // Array stored as db.column.list.
     @StoredAsProperty("db.username") private String username;
@@ -213,6 +215,22 @@ public class Droop2Options implements Cloneable {
         this.schemaName = schema;
     }
 
+    public String getInputSchemaName() {
+        return inputSchemaName;
+    }
+
+    public void setInputSchemaName(String schema) {
+        this.inputSchemaName = schema;
+    }
+
+    public String getOutputSchemaName() {
+        return outputSchemaName;
+    }
+
+    public void setOutputSchemaName(String schema) {
+        this.outputSchemaName = schema;
+    }
+
     public String getTableName() {
         return tableName;
     }
@@ -280,6 +298,15 @@ public class Droop2Options implements Cloneable {
 
     @StoredAsProperty("db.where.clause") private String whereClause;
     @StoredAsProperty("db.query") private String sqlQuery;
+
+    public String getSqlQuery() {
+        return sqlQuery;
+    }
+
+    public void setSqlQuery(String sqlStatement) {
+        this.sqlQuery = sqlStatement;
+    }
+
     @StoredAsProperty("db.query.boundary") private String boundaryQuery;
     @StoredAsProperty("jdbc.driver.class") private String driverClassName;
     @StoredAsProperty("hdfs.warehouse.dir") private String warehouseDir;
