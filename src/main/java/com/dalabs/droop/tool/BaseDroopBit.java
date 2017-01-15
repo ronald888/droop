@@ -13,7 +13,7 @@ import java.util.Arrays;
 import java.util.Properties;
 import java.sql.*;
 
-import com.dalabs.droop.Droop2Options;
+import com.dalabs.droop.DroopOptions;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.OptionBuilder;
@@ -21,12 +21,10 @@ import org.apache.commons.cli.OptionGroup;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.util.StringUtils;
-import com.dalabs.droop.util.CredentialsUtil2;
+import com.dalabs.droop.util.CredentialsUtil;
 import com.dalabs.droop.util.LoggingUtils;
-import com.dalabs.droop.util.password.CredentialProviderHelper;
 
-import com.dalabs.droop.Droop2Options;
-import com.dalabs.droop.Droop2Options.InvalidOptionsException;
+import com.dalabs.droop.DroopOptions.InvalidOptionsException;
 import com.dalabs.droop.cli.RelatedOptions;
 import com.dalabs.droop.cli.ToolOptions;
 
@@ -234,7 +232,7 @@ public abstract class BaseDroopBit extends com.dalabs.droop.tool.DroopBit {
         super(bitName);
     }
 
-    protected boolean init(Droop2Options droopOpts) {
+    protected boolean init(DroopOptions droopOpts) {
         droopOpts.setBitName(getBitName());
 
         /** Check if the JDBC Driver Class has not been set **/
@@ -266,7 +264,7 @@ public abstract class BaseDroopBit extends com.dalabs.droop.tool.DroopBit {
         return true;
     }
 
-    protected void rethrowIfRequired(Droop2Options options, Exception ex) {
+    protected void rethrowIfRequired(DroopOptions options, Exception ex) {
         if (!options.isThrowOnError()) {
             return;
         }
@@ -285,7 +283,7 @@ public abstract class BaseDroopBit extends com.dalabs.droop.tool.DroopBit {
     /**
      * Should be called in a 'finally' block at the end of the run() method.
      */
-    protected void destroy(Droop2Options droopOpts) {
+    protected void destroy(DroopOptions droopOpts) {
         if (null != conn) {
             try {
                 conn.close();
@@ -784,7 +782,7 @@ public abstract class BaseDroopBit extends com.dalabs.droop.tool.DroopBit {
     /**
      * Apply common command-line to the state.
      */
-    protected void applyCommonOptions(CommandLine in, Droop2Options out)
+    protected void applyCommonOptions(CommandLine in, DroopOptions out)
             throws InvalidOptionsException {
 
         // common options.
@@ -859,7 +857,7 @@ public abstract class BaseDroopBit extends com.dalabs.droop.tool.DroopBit {
         applyCredentialsOptions(in, out);
     }
 
-    private void applyCredentialsOptions(CommandLine in, Droop2Options out)
+    private void applyCredentialsOptions(CommandLine in, DroopOptions out)
             throws InvalidOptionsException {
         if (in.hasOption(USERNAME_ARG)) {
             out.setUsername(in.getOptionValue(USERNAME_ARG));
@@ -890,9 +888,9 @@ public abstract class BaseDroopBit extends com.dalabs.droop.tool.DroopBit {
             try {
                 out.setPasswordFilePath(in.getOptionValue(PASSWORD_PATH_ARG));
                 // apply password from file into password in options
-                out.setPassword(CredentialsUtil2.fetchPassword(out));
+                out.setPassword(CredentialsUtil.fetchPassword(out));
                 // And allow the PasswordLoader to clean up any sensitive properties
-                CredentialsUtil2.cleanUpSensitiveProperties(out.getConf());
+                CredentialsUtil.cleanUpSensitiveProperties(out.getConf());
             } catch (IOException ex) {
                 LOG.warn("Failed to load password file", ex);
                 throw (InvalidOptionsException)
@@ -912,7 +910,7 @@ public abstract class BaseDroopBit extends com.dalabs.droop.tool.DroopBit {
         }
     }
 
-    protected void validateCommonOptions(Droop2Options options)
+    protected void validateCommonOptions(DroopOptions options)
             throws InvalidOptionsException {
         if (options.getConnectString() == null) {
             throw new InvalidOptionsException(

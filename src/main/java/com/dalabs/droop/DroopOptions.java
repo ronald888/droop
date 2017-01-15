@@ -3,24 +3,23 @@ package com.dalabs.droop;
 /**
  * Created by ronaldm on 12/31/2016.
  */
-import java.io.File;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.lang.reflect.Field;
-import java.net.URLDecoder;
-import java.sql.Connection;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Properties;
 
+import com.dalabs.droop.tool.DroopBit;
+import com.dalabs.droop.util.StoredAsProperty;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 
-import com.dalabs.droop.util.StoredAsProperty;
-import com.dalabs.droop.tool.DroopTool;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.Properties;
+
+import com.dalabs.droop.lib.DelimiterSet;
+
+import static com.dalabs.droop.Droop.DROOP_RETHROW_PROPERTY;
 
 public class DroopOptions implements Cloneable {
 
@@ -33,7 +32,6 @@ public class DroopOptions implements Cloneable {
         AvroDataFile,
         ParquetFile
     }
-
     /**
      * Thrown when invalid cmdline options are given.
      */
@@ -56,10 +54,189 @@ public class DroopOptions implements Cloneable {
     }
 
     @StoredAsProperty("verbose") private boolean verbose;
+
+    // If this property is set, always throw an exception during a job, do not just
+    // exit with status 1.
+    @StoredAsProperty("droop.throwOnError") private boolean throwOnError;
+
     @StoredAsProperty("db.connect.string") private String connectString;
+    @StoredAsProperty("db.schema") private String schemaName;
+    @StoredAsProperty("db.input.schema") private String inputSchemaName;
+    @StoredAsProperty("db.output.schema") private String outputSchemaName;
     @StoredAsProperty("db.table") private String tableName;
     private String [] columns; // Array stored as db.column.list.
     @StoredAsProperty("db.username") private String username;
+
+    public String[] getColumns() {
+        if (null == columns) {
+            return null;
+        } else {
+            return Arrays.copyOf(columns, columns.length);
+        }
+    }
+
+    public String getColumnNameCaseInsensitive(String col){
+        if (null != columns) {
+            for(String columnName : columns) {
+                if(columnName.equalsIgnoreCase(col)) {
+                    return columnName;
+                }
+            }
+        }
+        return null;
+    }
+
+    public void setColumns(String [] cols) {
+        if (null == cols) {
+            this.columns = null;
+        } else {
+            this.columns = Arrays.copyOf(cols, cols.length);
+        }
+    }
+
+
+    /**
+     * The DROOP_RETHROW_PROPERTY system property is considered to be set if it is set to
+     * any kind of String value, i.e. it is not null.
+     */
+    // Type of DROOP_RETHROW_PROPERTY is String only to provide backward compatibility.
+    public static boolean isDroopRethrowSystemPropertySet() {
+        return (System.getProperty(DROOP_RETHROW_PROPERTY) != null);
+    }
+
+    /**
+     * Given a string containing a single character or an escape sequence
+     * representing a char, return that char itself.
+     *
+     * Normal literal characters return themselves: "x" -&gt; 'x', etc.
+     * Strings containing a '\' followed by one of t, r, n, or b escape to the
+     * usual character as seen in Java: "\n" -&gt; (newline), etc.
+     *
+     * Strings like "\0ooo" return the character specified by the octal sequence
+     * 'ooo'. Strings like "\0xhhh" or "\0Xhhh" return the character specified by
+     * the hex sequence 'hhh'.
+     *
+     * If the input string contains leading or trailing spaces, these are
+     * ignored.
+     */
+    public static char toChar(String charish) throws InvalidOptionsException {
+        if (null == charish || charish.length() == 0) {
+            throw new InvalidOptionsException("Character argument expected."
+                    + "\nTry --help for usage instructions.");
+        }
+
+        if (charish.startsWith("\\0x") || charish.startsWith("\\0X")) {
+            if (charish.length() == 3) {
+                throw new InvalidOptionsException(
+                        "Base-16 value expected for character argument."
+                                + "\nTry --help for usage instructions.");
+            } else {
+                String valStr = charish.substring(3);
+                int val = Integer.parseInt(valStr, 16);
+                return (char) val;
+            }
+        } else if (charish.startsWith("\\0")) {
+            if (charish.equals("\\0")) {
+                // it's just '\0', which we can take as shorthand for nul.
+                return DelimiterSet.NULL_CHAR;
+            } else {
+                // it's an octal value.
+                String valStr = charish.substring(2);
+                int val = Integer.parseInt(valStr, 8);
+                return (char) val;
+            }
+        } else if (charish.startsWith("\\")) {
+            if (charish.length() == 1) {
+                // it's just a '\'. Keep it literal.
+                return '\\';
+            } else if (charish.length() > 2) {
+                // we don't have any 3+ char escape strings.
+                throw new InvalidOptionsException(
+                        "Cannot understand character argument: " + charish
+                                + "\nTry --help for usage instructions.");
+            } else {
+                // this is some sort of normal 1-character escape sequence.
+                char escapeWhat = charish.charAt(1);
+                switch(escapeWhat) {
+                    case 'b':
+                        return '\b';
+                    case 'n':
+                        return '\n';
+                    case 'r':
+                        return '\r';
+                    case 't':
+                        return '\t';
+                    case '\"':
+                        return '\"';
+                    case '\'':
+                        return '\'';
+                    case '\\':
+                        return '\\';
+                    default:
+                        throw new InvalidOptionsException(
+                                "Cannot understand character argument: " + charish
+                                        + "\nTry --help for usage instructions.");
+                }
+            }
+        } else {
+            // it's a normal character.
+            if (charish.length() > 1) {
+                LOG.warn("Character argument " + charish + " has multiple characters; "
+                        + "only the first will be used.");
+            }
+
+            return charish.charAt(0);
+        }
+    }
+
+    public boolean getVerbose() {
+        return verbose;
+    }
+
+    public void setVerbose(boolean beVerbose) {
+        this.verbose = beVerbose;
+    }
+
+
+    public String getConnectString() {
+        return connectString;
+    }
+
+    public void setConnectString(String connectStr) {
+        this.connectString = connectStr;
+    }
+
+    public String getSchemaName() {
+        return schemaName;
+    }
+
+    public void setSchemaName(String schema) {
+        this.schemaName = schema;
+    }
+
+    public String getInputSchemaName() {
+        return inputSchemaName;
+    }
+
+    public void setInputSchemaName(String schema) {
+        this.inputSchemaName = schema;
+    }
+
+    public String getOutputSchemaName() {
+        return outputSchemaName;
+    }
+
+    public void setOutputSchemaName(String schema) {
+        this.outputSchemaName = schema;
+    }
+
+    public String getTableName() {
+        return tableName;
+    }
+
+    public void setTableName(String table) {
+        this.tableName = table;
+    }
 
     private Properties connectionParams; //Properties stored as db.connect.params
     public void setConnectionParams(Properties params) {
@@ -78,7 +255,7 @@ public class DroopOptions implements Cloneable {
     private String password;
 
     // This represents path to a file on ${user.home} containing the password
-    // with 400 permissions so its only readable by user executing the tool
+    // with 400 permissions so its only readable by user executing the bit
     @StoredAsProperty("db.password.file") private String passwordFilePath;
     @StoredAsProperty("null.string") private String nullStringValue;
     @StoredAsProperty("input.null.string") private String inNullStringValue;
@@ -86,8 +263,49 @@ public class DroopOptions implements Cloneable {
     @StoredAsProperty("input.null.non-string")
     private String inNullNonStringValue;
 
+    public void setNullStringValue(String nullString) {
+        this.nullStringValue = nullString;
+    }
+
+    public String getNullStringValue() {
+        return nullStringValue;
+    }
+
+    public void setInNullStringValue(String inNullString) {
+        this.inNullStringValue = inNullString;
+    }
+
+    public String getInNullStringValue() {
+        return inNullStringValue;
+    }
+
+    public void setNullNonStringValue(String nullNonString) {
+        this.nullNonStringValue = nullNonString;
+    }
+
+    public String getNullNonStringValue() {
+        return nullNonStringValue;
+    }
+
+    public void setInNullNonStringValue(String inNullNonString) {
+        this.inNullNonStringValue = inNullNonString;
+    }
+
+    public String getInNullNonStringValue() {
+        return inNullNonStringValue;
+    }
+
     @StoredAsProperty("db.where.clause") private String whereClause;
     @StoredAsProperty("db.query") private String sqlQuery;
+
+    public String getSqlQuery() {
+        return sqlQuery;
+    }
+
+    public void setSqlQuery(String sqlStatement) {
+        this.sqlQuery = sqlStatement;
+    }
+
     @StoredAsProperty("db.query.boundary") private String boundaryQuery;
     @StoredAsProperty("jdbc.driver.class") private String driverClassName;
     @StoredAsProperty("hdfs.warehouse.dir") private String warehouseDir;
@@ -99,21 +317,105 @@ public class DroopOptions implements Cloneable {
     // the connection manager fully qualified class name
     @StoredAsProperty("connection.manager") private String connManagerClassName;
 
-    private DroopTool activeDroopTool;
-
-    /** @return the DroopTool that is operating this session. */
-    public DroopTool getActiveDroopTool() {
-        return activeDroopTool;
+    /**
+     * @return The JDBC driver class name specified with --driver.
+     */
+    public String getDriverClassName() {
+        return driverClassName;
     }
 
-    public void setActiveDroopTool(DroopTool tool) {
-        activeDroopTool = tool;
+    public void setDriverClassName(String driverClass) {
+        this.driverClassName = driverClass;
+    }
+
+    /**
+     * @return the base destination path for table uploads.
+     */
+    public String getWarehouseDir() {
+        return warehouseDir;
+    }
+
+    public void setWarehouseDir(String warehouse) {
+        this.warehouseDir = warehouse;
+    }
+
+    public String getTargetDir() {
+        return this.targetDir;
+    }
+
+    public void setTargetDir(String dir) {
+        this.targetDir = dir;
+    }
+
+    public void setAppendMode(boolean doAppend) {
+        this.append = doAppend;
+    }
+
+    public boolean isAppendMode() {
+        return this.append;
+    }
+
+    public void setDeleteMode(boolean doDelete) {
+        this.delete = doDelete;
+    }
+
+    public boolean isDeleteMode() {
+        return this.delete;
+    }
+
+    /**
+     * @return the destination file format
+     */
+    public FileLayout getFileLayout() {
+        return this.layout;
+    }
+
+    public void setFileLayout(FileLayout fileLayout) {
+        this.layout = fileLayout;
+    }
+
+    private DroopBit activeDroopBit;
+
+    /** @return the DroopBit that is operating this session. */
+    public DroopBit getActiveDroopBit() {
+        return activeDroopBit;
+    }
+
+    public void setActiveDroopBit(DroopBit bit) {
+        activeDroopBit = bit;
     }
 
     private Configuration conf;
-    private String toolName;
+    private String bitName;
 
     private String [] extraArgs;
+
+    /**
+     * @return command-line arguments after a '-'.
+     */
+    public String [] getExtraArgs() {
+        if (extraArgs == null) {
+            return null;
+        }
+
+        String [] out = new String[extraArgs.length];
+        for (int i = 0; i < extraArgs.length; i++) {
+            out[i] = extraArgs[i];
+        }
+        return out;
+    }
+
+    public void setExtraArgs(String [] args) {
+        if (null == args) {
+            this.extraArgs = null;
+            return;
+        }
+
+        this.extraArgs = new String[args.length];
+        for (int i = 0; i < args.length; i++) {
+            this.extraArgs[i] = args[i];
+        }
+    }
 
     public Configuration getConf() {
         return conf;
@@ -123,12 +425,12 @@ public class DroopOptions implements Cloneable {
         this.conf = config;
     }
 
-    public String getToolName() {
-        return this.toolName;
+    public String getBitName() {
+        return this.bitName;
     }
 
-    public void setToolName(String toolName) {
-        this.toolName = toolName;
+    public void setBitName(String bitName) {
+        this.bitName = bitName;
     }
 
     public DroopOptions() {
@@ -140,7 +442,7 @@ public class DroopOptions implements Cloneable {
     }
 
     /**
-     * Alternate DroopOptions interface used mostly for unit testing.
+     * Alternate DroopXOptions interface used mostly for unit testing.
      * @param connect JDBC connect string to use
      * @param table Table to read
      */
@@ -157,6 +459,20 @@ public class DroopOptions implements Cloneable {
 
         // We do not want to be verbose too much if not explicitly needed
         this.verbose = false;
+
+        //This default value is set intentionally according to SQOOP_RETHROW_PROPERTY system property
+        //to support backward compatibility. Do not exchange it.
+        this.throwOnError = isDroopRethrowSystemPropertySet();
+        this.layout = FileLayout.ParquetFile;
+
+    }
+
+    public boolean isThrowOnError() {
+        return throwOnError;
+    }
+
+    public void setThrowOnError(boolean throwOnError) {
+        this.throwOnError = throwOnError;
     }
 
     public String getWhereClause() {
@@ -185,6 +501,40 @@ public class DroopOptions implements Cloneable {
 
     public void setPasswordFilePath(String passwdFilePath) {
         this.passwordFilePath = passwdFilePath;
+    }
+
+    public void setPassword(String pass) {
+        this.password = pass;
+    }
+
+
+    /**
+     * Allow the user to enter his password on the console without printing
+     * characters.
+     * @return the password as a string
+     */
+    private String securePasswordEntry() {
+        try {
+            return new String(System.console().readPassword("Enter password: "));
+        } catch (NullPointerException e) {
+            LOG.error("It seems that you have launched a Droop metastore job via");
+            LOG.error("Oozie with droop.metastore.client.record.password disabled.");
+            LOG.error("But this configuration is not supported because Droop can't");
+            LOG.error("prompt the user to enter the password while being executed");
+            LOG.error("as Oozie tasks. Please enable droop.metastore.client.record");
+            LOG.error(".password in droop-site.xml, or provide the password");
+            LOG.error("explicitly using --password in the command tag of the Oozie");
+            LOG.error("workflow file.");
+            return null;
+        }
+    }
+
+    /**
+     * Set the password in this DroopXOptions from the console without printing
+     * characters.
+     */
+    public void setPasswordFromConsole() {
+        this.password = securePasswordEntry();
     }
 
     protected void parseColumnMapping(String mapping,

@@ -4,8 +4,8 @@ package com.dalabs.droop.tool;
  * Created by ronaldm on 12/31/2016.
  */
 
-import com.dalabs.droop.Droop2Options;
-import com.dalabs.droop.Droop2Options.InvalidOptionsException;
+import com.dalabs.droop.DroopOptions;
+import com.dalabs.droop.DroopOptions.InvalidOptionsException;
 import com.dalabs.droop.cli.ToolOptions;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.logging.Log;
@@ -20,8 +20,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /*
-import com.cloudera.sqoop.Droop2Options;
-import com.cloudera.sqoop.Droop2Options.InvalidOptionsException;
+import com.cloudera.sqoop.DroopOptions;
+import com.cloudera.sqoop.DroopOptions.InvalidOptionsException;
 import com.cloudera.sqoop.cli.ToolOptions;
 */
 
@@ -50,7 +50,7 @@ public class ListSchemasBit extends BaseDroopBit {
 
     @Override
     /** $@inheritDoc} */
-    public int run(Droop2Options options) {
+    public int run(DroopOptions options) {
         if (!init(options)) {
             return 1;
         }
@@ -114,14 +114,14 @@ public class ListSchemasBit extends BaseDroopBit {
     }
 
     @Override
-    public void applyOptions(CommandLine in, Droop2Options out)
+    public void applyOptions(CommandLine in, DroopOptions out)
         throws InvalidOptionsException {
         applyCommonOptions(in, out);
     }
 
     @Override
     /** {@inheritDoc} */
-    public void validateOptions(Droop2Options options)
+    public void validateOptions(DroopOptions options)
             throws InvalidOptionsException {
         options.setExtraArgs(getSubcommandArgs(extraArguments));
         int dashPos = getDashPosition(extraArguments);

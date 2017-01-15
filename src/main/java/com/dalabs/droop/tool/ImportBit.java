@@ -4,8 +4,8 @@ package com.dalabs.droop.tool;
  * Created by ronaldm on 12/31/2016.
  */
 
-import com.dalabs.droop.Droop2Options;
-import com.dalabs.droop.Droop2Options.InvalidOptionsException;
+import com.dalabs.droop.DroopOptions;
+import com.dalabs.droop.DroopOptions.InvalidOptionsException;
 import com.dalabs.droop.cli.ToolOptions;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.OptionBuilder;
@@ -18,21 +18,15 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.List;
-
-import java.io.IOException;
 
 /*
-import com.cloudera.sqoop.Droop2Options;
-import com.cloudera.sqoop.Droop2Options.InvalidOptionsException;
+import com.cloudera.sqoop.DroopOptions;
+import com.cloudera.sqoop.DroopOptions.InvalidOptionsException;
 import com.cloudera.sqoop.cli.ToolOptions;
 */
 
 import com.dalabs.droop.cli.RelatedOptions;
-import com.dalabs.droop.cli.ToolOptions;
-import com.dalabs.droop.util.ImportException;
-import com.dalabs.droop.Droop2Options.FileLayout;
+import com.dalabs.droop.DroopOptions.FileLayout;
 
 /**
  * Bit that lists available tables in a database.
@@ -63,7 +57,7 @@ public class ImportBit extends BaseDroopBit {
     }
 
     @Override
-    protected boolean init(Droop2Options droopOpts) {
+    protected boolean init(DroopOptions droopOpts) {
         boolean ret = super.init(droopOpts);
         return ret;
     }
@@ -73,14 +67,14 @@ public class ImportBit extends BaseDroopBit {
      * @return true if the supplied options specify an incremental import.
      */
     /*
-    private boolean isIncremental(Droop2Options options) {
+    private boolean isIncremental(DroopOptions options) {
         return !options.getIncre
     }
     */
 
     @Override
     /** $@inheritDoc} */
-    public int run(Droop2Options options) {
+    public int run(DroopOptions options) {
         if (allTables) {
             // We got into this method, but we should be in a subclass.
             // (This method only handles a single table)
@@ -150,7 +144,7 @@ public class ImportBit extends BaseDroopBit {
         }
     }
 
-    protected boolean importTable(Droop2Options options, String tableName) {
+    protected boolean importTable(DroopOptions options, String tableName) {
         String inSchemaName = options.getInputSchemaName();
         String outSchemaName = options.getOutputSchemaName();
 
@@ -237,7 +231,7 @@ public class ImportBit extends BaseDroopBit {
         return true;
     }
 
-    protected boolean setStoreFormat(Droop2Options options) {
+    protected boolean setStoreFormat(DroopOptions options) {
         String storeFormat = getStoreFormat(options.getFileLayout());
 
         StringBuilder sb = new StringBuilder();
@@ -298,7 +292,7 @@ public class ImportBit extends BaseDroopBit {
      * @return the output path for the imported files;
      * if importing to hbase, this may return null.
      */
-    private Path getOutputPath(Droop2Options options, String tableName) {
+    private Path getOutputPath(DroopOptions options, String tableName) {
         /**
          * droop behavior:
          * provide option for output-schema, aside from input-schema
@@ -470,7 +464,7 @@ public class ImportBit extends BaseDroopBit {
     }
 
     @Override
-    public void applyOptions(CommandLine in, Droop2Options out)
+    public void applyOptions(CommandLine in, DroopOptions out)
         throws InvalidOptionsException {
         try {
             applyCommonOptions(in, out);
@@ -534,19 +528,19 @@ public class ImportBit extends BaseDroopBit {
             }
 
             if (in.hasOption(FMT_SEQUENCEFILE_ARG)) {
-                out.setFileLayout(Droop2Options.FileLayout.SequenceFile);
+                out.setFileLayout(DroopOptions.FileLayout.SequenceFile);
             }
 
             if (in.hasOption(FMT_TEXTFILE_ARG)) {
-                out.setFileLayout(Droop2Options.FileLayout.TextFile);
+                out.setFileLayout(DroopOptions.FileLayout.TextFile);
             }
 
             if (in.hasOption(FMT_AVRODATAFILE_ARG)) {
-                out.setFileLayout(Droop2Options.FileLayout.AvroDataFile);
+                out.setFileLayout(DroopOptions.FileLayout.AvroDataFile);
             }
 
             if (in.hasOption(FMT_PARQUETFILE_ARG)) {
-                out.setFileLayout(Droop2Options.FileLayout.ParquetFile);
+                out.setFileLayout(DroopOptions.FileLayout.ParquetFile);
             }
         } catch (NumberFormatException nfe) {
             throw new InvalidOptionsException("Error: expected numeric argument.\n"
@@ -556,9 +550,9 @@ public class ImportBit extends BaseDroopBit {
 
     /**
      * Validate import-specific arguments.
-     * @param options the configured Droop2Options to check
+     * @param options the configured DroopOptions to check
      */
-    protected void validateImportOptions(Droop2Options options)
+    protected void validateImportOptions(DroopOptions options)
             throws InvalidOptionsException {
          if (!allTables
                  && options.getInputSchemaName() == null
@@ -640,7 +634,7 @@ public class ImportBit extends BaseDroopBit {
             throw new InvalidOptionsException("Validation is not supported for "
                     + "where clause but single table only.");
         } else if (options.getIncrementalMode()
-                != Droop2Options.IncrementalMode.None && options.isValidationEnabled()) {
+                != DroopOptions.IncrementalMode.None && options.isValidationEnabled()) {
             throw new InvalidOptionsException("Validation is not supported for "
                     + "incremental imports but single table only.");
         } else if ((options.getTargetDir() != null
@@ -654,7 +648,7 @@ public class ImportBit extends BaseDroopBit {
                     + " not be used together.");
         /*
         } else if (options.isDeleteMode() && options.getIncrementalMode()
-                != Droop2Options.IncrementalMode.None) {
+                != DroopOptions.IncrementalMode.None) {
             throw new InvalidOptionsException("--delete-target-dir can not be used"
                     + " with incremental imports.");
         } else if (options.getAutoResetToOneMapper()
@@ -667,7 +661,7 @@ public class ImportBit extends BaseDroopBit {
 
     @Override
     /** {@inheritDoc} */
-    public void validateOptions(Droop2Options options)
+    public void validateOptions(DroopOptions options)
             throws InvalidOptionsException {
         options.setExtraArgs(getSubcommandArgs(extraArguments));
         int dashPos = getDashPosition(extraArguments);

@@ -19,11 +19,11 @@
 package com.dalabs.droop.util;
 
 import com.dalabs.droop.DroopOptions;
+import com.dalabs.droop.util.password.FilePasswordLoader;
+import com.dalabs.droop.util.password.PasswordLoader;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import com.dalabs.droop.util.password.FilePasswordLoader;
-import com.dalabs.droop.util.password.PasswordLoader;
 
 import java.io.IOException;
 

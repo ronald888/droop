@@ -5,8 +5,6 @@ import java.util.Arrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-
 import com.dalabs.droop.tool.DroopBit;
 import com.dalabs.droop.util.OptionsFileUtil;
 
@@ -25,13 +23,13 @@ public class Droop {
     public static final String DROOP_OPTIONS_FILE_SPECIFIER = "--options-file";
 
     private DroopBit bit;
-    private Droop2Options options;
+    private DroopOptions options;
 
     public Droop(DroopBit bit) {
-        this(bit, new Droop2Options());
+        this(bit, new DroopOptions());
     }
 
-    public Droop(DroopBit bit, Droop2Options opts) {
+    public Droop(DroopBit bit, DroopOptions opts) {
         LOG.info("Running Droop version: ");
         /**
          * TODO: set options conf here
@@ -44,13 +42,13 @@ public class Droop {
         return this.bit;
     }
 
-    public Droop2Options getOptions() {
+    public DroopOptions getOptions() {
         return this.options;
     }
 
     public static int runDroop(Droop droop, String [] args) {
 
-        Droop2Options options = droop.getOptions();
+        DroopOptions options = droop.getOptions();
         DroopBit bit = droop.getBit();
 
         try {

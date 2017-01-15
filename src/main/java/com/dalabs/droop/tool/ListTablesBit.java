@@ -3,26 +3,25 @@ package com.dalabs.droop.tool;
 /**
  * Created by ronaldm on 12/31/2016.
  */
+import com.dalabs.droop.DroopOptions;
 import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import java.io.IOException;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
 /*
-import com.cloudera.sqoop.Droop2Options;
-import com.cloudera.sqoop.Droop2Options.InvalidOptionsException;
+import com.cloudera.sqoop.DroopOptions;
+import com.cloudera.sqoop.DroopOptions.InvalidOptionsException;
 import com.cloudera.sqoop.cli.ToolOptions;
 */
 
 import com.dalabs.droop.cli.RelatedOptions;
 import com.dalabs.droop.cli.ToolOptions;
-import com.dalabs.droop.Droop2Options;
-import com.dalabs.droop.Droop2Options.InvalidOptionsException;
+import com.dalabs.droop.DroopOptions.InvalidOptionsException;
 import org.apache.hadoop.util.StringUtils;
 
 /**
@@ -52,7 +51,7 @@ public class ListTablesBit extends BaseDroopBit {
 
     @Override
     /** $@inheritDoc} */
-    public int run(Droop2Options options) {
+    public int run(DroopOptions options) {
         if (!init(options)) {
             return 1;
         }
@@ -74,7 +73,7 @@ public class ListTablesBit extends BaseDroopBit {
         return 0;
     }
 
-    protected String[] listTables(Droop2Options options) {
+    protected String[] listTables(DroopOptions options) {
         String schemaName = options.getSchemaName();
 
         StringBuilder sb = new StringBuilder();
@@ -156,7 +155,7 @@ public class ListTablesBit extends BaseDroopBit {
     }
 
     @Override
-    public void applyOptions(CommandLine in, Droop2Options out)
+    public void applyOptions(CommandLine in, DroopOptions out)
         throws InvalidOptionsException {
         try {
             applyCommonOptions(in, out);
@@ -173,9 +172,9 @@ public class ListTablesBit extends BaseDroopBit {
 
     /**
      * Validate list-tables-specific arguments.
-     * @param options the configured Droop2Options to check
+     * @param options the configured DroopOptions to check
      */
-    protected void validateListTablesOptions(Droop2Options options)
+    protected void validateListTablesOptions(DroopOptions options)
             throws InvalidOptionsException {
         if (options.getSchemaName() == null) {
             throw new InvalidOptionsException(
@@ -186,7 +185,7 @@ public class ListTablesBit extends BaseDroopBit {
 
     @Override
     /** {@inheritDoc} */
-    public void validateOptions(Droop2Options options)
+    public void validateOptions(DroopOptions options)
             throws InvalidOptionsException {
         options.setExtraArgs(getSubcommandArgs(extraArguments));
         int dashPos = getDashPosition(extraArguments);

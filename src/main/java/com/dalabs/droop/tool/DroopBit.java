@@ -4,19 +4,11 @@ package com.dalabs.droop.tool;
  * Created by ronaldm on 12/31/2016.
  */
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
 
+import com.dalabs.droop.DroopOptions;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.ParseException;
@@ -25,11 +17,9 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.util.StringUtils;
 
-import com.dalabs.droop.Droop2Options;
-import com.dalabs.droop.Droop2Options.InvalidOptionsException;
+import com.dalabs.droop.DroopOptions.InvalidOptionsException;
 import com.dalabs.droop.cli.DroopParser;
 import com.dalabs.droop.cli.ToolOptions;
-import com.dalabs.droop.tool.BitDesc;
 
 public abstract class DroopBit {
 
@@ -180,12 +170,12 @@ public abstract class DroopBit {
 
     /**
      * Main body of code to run the tool.
-     * @param options the Droop2Options configured via
+     * @param options the DroopOptions configured via
      * configureOptions()/applyOptions().
      * @return an integer return code for external programs to consume. 0
      * represents success; nonzero means failure.
      */
-    public abstract int run(Droop2Options options);
+    public abstract int run(DroopOptions options);
 
     /**
      * Configure the command-line arguments we expect to receive.
@@ -212,13 +202,13 @@ public abstract class DroopBit {
         System.out.println("(must preceed any bit-specific arguments)");
     }
 
-    /** Generate the Droop2Options containing actual argument values from
+    /** Generate the DroopOptions containing actual argument values from
      * the extracted CommandLine arguments.
      * @param in the CLI CommandLine that contain the user's set Options.
-     * @param out the Droop2Options with all fields applied.
+     * @param out the DroopOptions with all fields applied.
      * @throws InvalidOptionsException if there's a problem.
      */
-    public void applyOptions(CommandLine in, Droop2Options out)
+    public void applyOptions(CommandLine in, DroopOptions out)
             throws InvalidOptionsException {
         // Default implementation does nothing.
     }
@@ -228,47 +218,47 @@ public abstract class DroopBit {
      * present and that any mutually-exclusive options are not selected.
      * @throws InvalidOptionsException if there's a problem.
      */
-    public void validateOptions(Droop2Options options)
+    public void validateOptions(DroopOptions options)
             throws InvalidOptionsException {
         // Default implementation does nothing.
     }
 
     /**
-     * Configures a Droop2Options according to the specified arguments.
-     * Reads a set of arguments and uses them to configure a Droop2Options
+     * Configures a DroopOptions according to the specified arguments.
+     * Reads a set of arguments and uses them to configure a DroopOptions
      * and its embedded configuration (i.e., through GenericOptionsParser.)
      * Stores any unparsed arguments in the extraArguments field.
      *
      * @param args the arguments to parse.
      * @param conf if non-null, set as the configuration for the returned
-     * Droop2Options.
-     * @param in a (perhaps partially-configured) Droop2Options. If null,
-     * then a new Droop2Options will be used. If this has a null configuration
+     * DroopOptions.
+     * @param in a (perhaps partially-configured) DroopOptions. If null,
+     * then a new DroopOptions will be used. If this has a null configuration
      * and conf is null, then a new Configuration will be inserted in this.
      * @param useGenericOptions if true, will also parse generic Hadoop
      * options into the Configuration.
-     * @return a Droop2Options that is fully configured by a given tool.
+     * @return a DroopOptions that is fully configured by a given tool.
      */
-    public Droop2Options parseArguments(String [] args,
-                                       Configuration conf, Droop2Options in, boolean useGenericOptions)
-            throws ParseException, Droop2Options.InvalidOptionsException {
-        Droop2Options out = in;
+    public DroopOptions parseArguments(String [] args,
+                                       Configuration conf, DroopOptions in, boolean useGenericOptions)
+            throws ParseException, DroopOptions.InvalidOptionsException {
+        DroopOptions out = in;
 
         if (null == out) {
-            out = new Droop2Options();
+            out = new DroopOptions();
         }
 
         if (null != conf) {
             // User specified a configuration; use it and override any conf
-            // that may have been in the Droop2Options.
+            // that may have been in the DroopOptions.
             out.setConf(conf);
         } else if (null == out.getConf()) {
             // User did not specify a configuration, but neither did the
-            // Droop2Options. Fabricate a new one.
+            // DroopOptions. Fabricate a new one.
             out.setConf(new Configuration());
         }
 
-        // This bit is the "active" bit; bind it in the Droop2Options.
+        // This bit is the "active" bit; bind it in the DroopOptions.
         out.setActiveDroopBit(this);
 
         String [] bitArgs = args; // args after generic parser is done.

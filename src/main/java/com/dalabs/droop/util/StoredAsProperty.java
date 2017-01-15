@@ -25,7 +25,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Used by DroopOptions to denote that a field is stored in a particular
+ * Used by DroopXOptions to denote that a field is stored in a particular
  * named property when reifying the object's state to permanent storage.
  */
 @Documented
