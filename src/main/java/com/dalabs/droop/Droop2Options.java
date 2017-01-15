@@ -32,7 +32,6 @@ public class Droop2Options implements Cloneable {
         AvroDataFile,
         ParquetFile
     }
-
     /**
      * Thrown when invalid cmdline options are given.
      */
