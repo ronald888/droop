@@ -248,6 +248,13 @@ public class DroopOptions implements Cloneable {
         return connectionParams;
     }
 
+    private boolean cvasMode;
+    public void setCvasMode(boolean cvasMode) { this.cvasMode = cvasMode; }
+    public boolean getCvasMode() { return cvasMode; }
+
+    private boolean noCount;
+    public void setNoCount(boolean noCount) { this.noCount = noCount; }
+    public boolean getNoCount() { return noCount; }
 
     // May not be serialized, based on configuration.
     // db.require.password is used to determine whether 'some' password is

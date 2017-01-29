@@ -1,6 +1,7 @@
 package com.dalabs.droop;
 
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,7 +61,22 @@ public class Droop {
             return 1;
         }
 
-        return bit.run(options);
+        //return bit.run(options);
+
+        long startTime = System.currentTimeMillis();
+        int value = bit.run(options);
+        long endTime = System.currentTimeMillis();
+
+        long duration = (endTime - startTime);
+        // LOG.info("That took " + duration + " milliseconds");
+        LOG.info("That took " +
+                String.format("%02d min, %02d sec",
+                    TimeUnit.MILLISECONDS.toMinutes(duration),
+                    TimeUnit.MILLISECONDS.toSeconds(duration) -
+                        TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(duration)))
+        );
+
+        return value;
     }
 
     public static int runBit(String [] args) {

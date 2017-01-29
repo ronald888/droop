@@ -58,6 +58,8 @@ public abstract class BaseDroopBit extends com.dalabs.droop.tool.DroopBit {
             "connection-manager";
     public static final String CONNECT_PARAM_FILE = "connection-param-file";
     public static final String DRIVER_ARG = "driver";
+    public static final String NO_COUNT_ARG = "no-count";
+    public static final String CVAS_MODE_ARG = "as-view";
     public static final String USERNAME_ARG = "username";
     public static final String PASSWORD_ARG = "password";
     public static final String PASSWORD_PROMPT_ARG = "P";
@@ -432,6 +434,14 @@ public abstract class BaseDroopBit extends com.dalabs.droop.tool.DroopBit {
         commonOpts.addOption(OptionBuilder.withArgName("class-name")
                 .hasArg().withDescription("Manually specify JDBC driver class to use")
                 .withLongOpt(DRIVER_ARG)
+                .create());
+        commonOpts.addOption(OptionBuilder
+                .withDescription("Do not perform select count")
+                .withLongOpt(NO_COUNT_ARG)
+                .create());
+        commonOpts.addOption(OptionBuilder
+                .withDescription("Create a view instead of a table")
+                .withLongOpt(CVAS_MODE_ARG)
                 .create());
         commonOpts.addOption(OptionBuilder.withArgName("username")
                 .hasArg().withDescription("Set authentication username")
@@ -852,6 +862,14 @@ public abstract class BaseDroopBit extends com.dalabs.droop.tool.DroopBit {
 
         if (in.hasOption(DRIVER_ARG)) {
             out.setDriverClassName(in.getOptionValue(DRIVER_ARG));
+        }
+
+        if (in.hasOption(NO_COUNT_ARG)) {
+            out.setNoCount(true);
+        }
+
+        if (in.hasOption(CVAS_MODE_ARG)) {
+            out.setCvasMode(true);
         }
 
         applyCredentialsOptions(in, out);

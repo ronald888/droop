@@ -18,6 +18,8 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 
 /*
 import com.cloudera.sqoop.DroopOptions;
@@ -106,10 +108,95 @@ public class ImportBit extends BaseDroopBit {
         return 0;
     }
 
-    protected void dropTable(Connection conn, String fullTableName) {
+    protected String getTableColumns(Connection conn, String fullTableName) {
 
         StringBuilder sb = new StringBuilder();
-        sb.append("DROP TABLE ");
+        sb.append("DESCRIBE ");
+        sb.append(fullTableName);
+
+        String sqlCmd = sb.toString();
+        LOG.debug("Getting columns for " + fullTableName + ": " + sqlCmd);
+
+        Statement stmt = null;
+        ResultSet rs = null;
+        List<String> columnList = new ArrayList<String>();
+
+        try {
+            stmt = conn.createStatement();
+            rs = stmt.executeQuery(sqlCmd);
+            while (rs.next()) {
+                columnList.add("`" + rs.getString(1) + "`");
+            }
+        } catch (SQLException se) {
+            LOG.warn("Failed to get column list");
+            return "";
+        } finally {
+            try {
+                if (rs != null) {
+                    rs.close();
+                }
+            } catch (SQLException ex) {
+                LOG.error("Failed to close resultset: " + StringUtils.stringifyException(ex));
+                return "";
+            }
+            try {
+                if (stmt != null) {
+                    stmt.close();
+                }
+            } catch (SQLException ex) {
+                LOG.error("Failed to close statement: " + StringUtils.stringifyException(ex));
+                return "";
+            }
+        }
+        return StringUtils.join(",", columnList);
+    }
+
+    protected void getTableRecords(Connection conn, String sqlClause) {
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("SELECT count(*) FROM ");
+        sb.append(sqlClause);
+
+        String sqlCmd = sb.toString();
+        LOG.debug("Getting number of records in a table with command: " + sqlCmd);
+
+        Statement stmt = null;
+        ResultSet rs = null;
+
+        try {
+            stmt = conn.createStatement();
+            rs = stmt.executeQuery(sqlCmd);
+            rs.next();
+            LOG.info("Number of records: " + rs.getString(1));
+            System.out.println("Number of records: " + rs.getString(1));
+        } catch (SQLException se) {
+            LOG.warn("Failed to get count");
+        } finally {
+            try {
+                if (rs != null) {
+                    rs.close();
+                }
+            } catch (SQLException ex) {
+                LOG.error("Failed to close resultset: " + StringUtils.stringifyException(ex));
+            }
+            try {
+                if (stmt != null) {
+                    stmt.close();
+                }
+            } catch (SQLException ex) {
+                LOG.error("Failed to close statement: " + StringUtils.stringifyException(ex));
+            }
+        }
+    }
+
+    protected void dropTable(Connection conn, DroopOptions options, String fullTableName) {
+
+        StringBuilder sb = new StringBuilder();
+        if (!options.getCvasMode()) {
+            sb.append("DROP TABLE IF EXISTS ");
+        } else {
+            sb.append("DROP VIEW ");
+        }
         sb.append(fullTableName);
 
         String sqlCmd = sb.toString();
@@ -122,10 +209,10 @@ public class ImportBit extends BaseDroopBit {
             stmt = conn.createStatement();
             rs = stmt.executeQuery(sqlCmd);
             rs.next();
-            LOG.info("Table dropped: " + rs.getString(1));
+            LOG.info("Dropped: " + rs.getString(1));
             System.out.println("Table dropped: " + rs.getString(1));
         } catch (SQLException se) {
-            LOG.warn("Failed to drop table");
+            LOG.warn("Failed to drop");
         } finally {
             try {
                 if (rs != null) {
@@ -158,7 +245,12 @@ public class ImportBit extends BaseDroopBit {
 
 
         StringBuilder sb = new StringBuilder();
-        sb.append("CREATE TABLE ");
+
+        if (!options.getCvasMode()) {
+            sb.append("CREATE TABLE ");
+        } else {
+            sb.append("CREATE VIEW ");
+        }
         sb.append(outTable);
         sb.append(" AS ");
 
@@ -172,14 +264,32 @@ public class ImportBit extends BaseDroopBit {
                     + tableName
                     + "`";
 
-            sb.append("SELECT * FROM ");
-            sb.append(inTable);
+            StringBuilder sb2 = new StringBuilder();
+            sb2.append(inTable);
 
             String where = options.getWhereClause();
             if (null != where) {
-                sb.append(" WHERE ");
-                sb.append(where);
+                sb2.append(" WHERE ");
+                sb2.append(where);
             }
+
+            //TODO: Set parameter to show or not show table records
+            if (!options.getNoCount()) {
+                getTableRecords(conn, sb2.toString());
+            }
+
+            //sb.append("SELECT * FROM ");
+
+            sb.append("SELECT ");
+            String columns[] = options.getColumns();
+            if (null == columns) {
+                sb.append(getTableColumns(conn, inTable));
+            } else {
+                sb.append(StringUtils.join(",", columns));
+            }
+            sb.append(" FROM ");
+            sb.append(sb2.toString());
+
         } else {
             // Import a free form query
 
@@ -199,13 +309,21 @@ public class ImportBit extends BaseDroopBit {
             conn = getConnection();
 
             if (options.isDeleteMode()) {
-                dropTable(conn, outTable);
+                dropTable(conn, options, outTable);
             }
+
             stmt = conn.createStatement();
             rs = stmt.executeQuery(sqlCmd);
-            rs.next();
-            LOG.info("Total number of records imported: " + rs.getString(2));
-            System.out.println("Total number of records imported: " + rs.getString(2));
+            //rs.setFetchSize(100000);
+            //rs.next();
+            while (rs.next()) {
+                LOG.info("Total number of records imported: " + rs.getString(2));
+                System.out.println("Total number of records imported: " + rs.getString(2));
+            }
+            //rs = stmt.executeQuery(sqlCmd);
+            //rs.next();
+            //LOG.info("Total number of records imported: " + rs.getString(2));
+            //System.out.println("Total number of records imported: " + rs.getString(2));
         } catch (SQLException se) {
             LOG.error("Failed to import table: " + StringUtils.stringifyException(se));
             return false;
