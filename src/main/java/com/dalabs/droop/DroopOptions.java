@@ -64,8 +64,10 @@ public class DroopOptions implements Cloneable {
     @StoredAsProperty("db.input.schema") private String inputSchemaName;
     @StoredAsProperty("db.output.schema") private String outputSchemaName;
     @StoredAsProperty("db.table") private String tableName;
-    private String [] columns; // Array stored as db.column.list.
     @StoredAsProperty("db.username") private String username;
+    private String [] columns; // Array stored as db.column.list.
+    private String [] datatypes; // Array stored as db.datatype.list.
+    private String [] dataformats; // Array stored as db.dataformat.list.
 
     public String[] getColumns() {
         if (null == columns) {
@@ -94,6 +96,59 @@ public class DroopOptions implements Cloneable {
         }
     }
 
+    public String[] getDataTypes() {
+        if (null == datatypes) {
+            return null;
+        } else {
+            return Arrays.copyOf(datatypes, datatypes.length);
+        }
+    }
+
+    public String getDataTypeCaseInsensitive(String dt){
+        if (null != datatypes) {
+            for(String datatype : datatypes) {
+                if(datatype.equalsIgnoreCase(dt)) {
+                    return datatype;
+                }
+            }
+        }
+        return null;
+    }
+
+    public void setDataTypes(String [] dts) {
+        if (null == dts) {
+            this.datatypes = null;
+        } else {
+            this.datatypes = Arrays.copyOf(dts, dts.length);
+        }
+    }
+
+    public String[] getDataFormats() {
+        if (null == dataformats) {
+            return null;
+        } else {
+            return Arrays.copyOf(dataformats, dataformats.length);
+        }
+    }
+
+    public String getDataFormatCaseInsensitive(String df){
+        if (null != dataformats) {
+            for(String dataformat : dataformats) {
+                if(dataformat.equalsIgnoreCase(df)) {
+                    return dataformat;
+                }
+            }
+        }
+        return null;
+    }
+
+    public void setDataFormats(String [] dfs) {
+        if (null == dfs) {
+            this.dataformats = null;
+        } else {
+            this.dataformats = Arrays.copyOf(dfs, dfs.length);
+        }
+    }
 
     /**
      * The DROOP_RETHROW_PROPERTY system property is considered to be set if it is set to
@@ -251,6 +306,10 @@ public class DroopOptions implements Cloneable {
     private boolean cvasMode;
     public void setCvasMode(boolean cvasMode) { this.cvasMode = cvasMode; }
     public boolean getCvasMode() { return cvasMode; }
+
+    private boolean csvToParquet;
+    public void setCsvToParquet(boolean csvToParquet) { this.csvToParquet = csvToParquet; }
+    public boolean getCsvToParquet() { return csvToParquet; }
 
     private boolean noCount;
     public void setNoCount(boolean noCount) { this.noCount = noCount; }

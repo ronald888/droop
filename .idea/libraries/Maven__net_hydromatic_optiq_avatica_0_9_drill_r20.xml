@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: net.hydromatic:optiq-avatica:0.9-drill-r20">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/net/hydromatic/optiq-avatica/0.9-drill-r20/optiq-avatica-0.9-drill-r20.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/net/hydromatic/optiq-avatica/0.9-drill-r20/optiq-avatica-0.9-drill-r20-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/net/hydromatic/optiq-avatica/0.9-drill-r20/optiq-avatica-0.9-drill-r20-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

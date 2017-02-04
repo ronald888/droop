@@ -60,6 +60,7 @@ public abstract class BaseDroopBit extends com.dalabs.droop.tool.DroopBit {
     public static final String DRIVER_ARG = "driver";
     public static final String NO_COUNT_ARG = "no-count";
     public static final String CVAS_MODE_ARG = "as-view";
+    public static final String CSV_TO_PARQUET_MODE_ARG = "csv-to-parquet";
     public static final String USERNAME_ARG = "username";
     public static final String PASSWORD_ARG = "password";
     public static final String PASSWORD_PROMPT_ARG = "P";
@@ -74,6 +75,8 @@ public abstract class BaseDroopBit extends com.dalabs.droop.tool.DroopBit {
     public static final String STAGING_TABLE_ARG = "staging-table";
     public static final String CLEAR_STAGING_TABLE_ARG = "clear-staging-table";
     public static final String COLUMNS_ARG = "columns";
+    public static final String DATA_TYPES_ARG = "data-types";
+    public static final String DATA_FORMATS_ARG = "data-formats";
     public static final String SPLIT_BY_ARG = "split-by";
     public static final String SPLIT_LIMIT_ARG = "split-limit";
     public static final String WHERE_ARG = "where";

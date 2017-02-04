@@ -231,6 +231,63 @@ public class ImportBit extends BaseDroopBit {
         }
     }
 
+    protected String columnDataCast(String colName, String columnType) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(" CASE WHEN " + colName + " =  '' THEN CAST(NULL AS " + columnType + ") ELSE CAST(" + colName + " AS " + columnType + ") END AS " + colName );
+        return sb.toString();
+    }
+
+    protected String columnDataToDate(String colName, String columnType, String columnFormat) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(" CASE WHEN " + colName + " =  '' THEN CAST(NULL AS " + columnType + ") ELSE TO_DATE(" + colName + ", " + columnFormat + ") END AS " + colName );
+        return sb.toString();
+    }
+
+    protected String columnDataToTimeStamp(String colName, String columnType, String columnFormat) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(" CASE WHEN " + colName + " =  '' THEN CAST(NULL AS " + columnType + ") ELSE TO_TIMESTAMP(" + colName + ", " + columnFormat + ") END AS " + colName );
+        return sb.toString();
+    }
+
+    protected String columnsDataMapped(DroopOptions options) {
+        StringBuilder sb = new StringBuilder();
+
+        String columns[] = options.getColumns();
+        String types[] = options.getDataTypes();
+        String formats[] = options.getDataFormats();
+
+        for (int i = 0; i < columns.length; i++) {
+            if (types[i] == null || types[i].isEmpty()) {
+                sb.append(columns[i]);
+            } else if (types[i].contains("decimal")) {
+                sb.append(columnDataCast(columns[i], types[i]));
+            } else {
+                switch (types[i]) {
+                    case "DATE":
+                        if (formats[i] != null && !formats[i].isEmpty()) {
+                            sb.append(columnDataToDate(columns[i], types[i], formats[i]));
+                        } else {
+                            sb.append(columnDataCast(columns[i], types[i]));
+                        }
+                        break;
+                    case "TIMESTAMP":
+                        if (formats[i] != null && !formats[i].isEmpty()) {
+                            sb.append(columnDataToTimeStamp(columns[i], types[i], formats[i]));
+                        } else {
+                            sb.append(columnDataCast(columns[i], types[i]));
+                        }
+                        break;
+                    default:
+                        sb.append(columnDataCast(columns[i], types[i]));
+                }
+            }
+            if ((i+1) < columns.length) {
+                sb.append(", ");
+            }
+        }
+        return sb.toString();
+    }
+
     protected boolean importTable(DroopOptions options, String tableName) {
         String inSchemaName = options.getInputSchemaName();
         String outSchemaName = options.getOutputSchemaName();
@@ -281,11 +338,16 @@ public class ImportBit extends BaseDroopBit {
             //sb.append("SELECT * FROM ");
 
             sb.append("SELECT ");
-            String columns[] = options.getColumns();
-            if (null == columns) {
-                sb.append(getTableColumns(conn, inTable));
+
+            if (options.getCsvToParquet()) {
+                sb.append(columnsDataMapped(options));
             } else {
-                sb.append(StringUtils.join(",", columns));
+                String columns[] = options.getColumns();
+                if (null == columns) {
+                    sb.append(getTableColumns(conn, inTable));
+                } else {
+                    sb.append(StringUtils.join(",", columns));
+                }
             }
             sb.append(" FROM ");
             sb.append(sb2.toString());
@@ -316,10 +378,16 @@ public class ImportBit extends BaseDroopBit {
             rs = stmt.executeQuery(sqlCmd);
             //rs.setFetchSize(100000);
             //rs.next();
+            long count = 0;
             while (rs.next()) {
-                LOG.info("Total number of records imported: " + rs.getString(2));
-                System.out.println("Total number of records imported: " + rs.getString(2));
+                long b_count = 0;
+                b_count = rs.getLong(2);
+                LOG.info("Total number of records imported: " + b_count);
+                System.out.println("Total number of records imported: " + b_count);
+                count += b_count;
             }
+            LOG.info("Grand total number of records imported: " + count);
+            System.out.println("Grand total number of records imported: " + count);
             //rs = stmt.executeQuery(sqlCmd);
             //rs.next();
             //LOG.info("Total number of records imported: " + rs.getString(2));
@@ -460,6 +528,18 @@ public class ImportBit extends BaseDroopBit {
                     .hasArg().withDescription("Columns to import from table")
                     .withLongOpt(COLUMNS_ARG)
                     .create());
+            importOpts.addOption(OptionBuilder
+                    .withDescription("Convert data from CSV to Parquet")
+                    .withLongOpt(CSV_TO_PARQUET_MODE_ARG)
+                    .create());
+            importOpts.addOption(OptionBuilder.withArgName("type,type,type...")
+                    .hasArg().withDescription("Data types for each column to import from table")
+                    .withLongOpt(DATA_TYPES_ARG)
+                    .create());
+            importOpts.addOption(OptionBuilder.withArgName("format,format,format...")
+                    .hasArg().withDescription("Data formats for each column to import from table")
+                    .withLongOpt(DATA_FORMATS_ARG)
+                    .create());
             importOpts.addOption(OptionBuilder.withArgName("where clause")
                     .hasArg().withDescription("WHERE clause to use during import")
                     .withLongOpt(WHERE_ARG)
@@ -598,6 +678,26 @@ public class ImportBit extends BaseDroopBit {
                         cols[i] = cols[i].trim();
                     }
                     out.setColumns(cols);
+                }
+
+                if (in.hasOption(CSV_TO_PARQUET_MODE_ARG)) {
+                    out.setCsvToParquet(true);
+                }
+
+                if (in.hasOption(DATA_TYPES_ARG)) {
+                    String[] dts= in.getOptionValue(DATA_TYPES_ARG).split(",");
+                    for (int i=0; i<dts.length; i++) {
+                        dts[i] = dts[i].trim();
+                    }
+                    out.setDataTypes(dts);
+                }
+
+                if (in.hasOption(DATA_FORMATS_ARG)) {
+                    String[] dfs= in.getOptionValue(DATA_FORMATS_ARG).split(",");
+                    for (int i=0; i<dfs.length; i++) {
+                        dfs[i] = dfs[i].trim();
+                    }
+                    out.setDataFormats(dfs);
                 }
 
                 if (in.hasOption(WHERE_ARG)) {
